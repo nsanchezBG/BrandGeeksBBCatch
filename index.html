@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burger Catch</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos generales del cuerpo */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #ffffff; /* Fondo blanco */
+            font-family: 'VT323', monospace; /* Fuente principal del juego */
+            overflow: hidden; /* Evita barras de desplazamiento */
+        }
+        /* Contenedor principal del juego */
+        #game-container {
+            width: 400px; /* 10 tiles de ancho */
+            height: 600px; /* 15 tiles de alto */
+            background-color: #ffffff; /* Fondo blanco */
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #333;
+            touch-action: none;
+            pointer-events: none;
+        }
+        /* Estilo para el jugador */
+        #player {
+            width: calc(36px * 1.2); /* 20% más grande */
+            height: calc(36px * 1.2); /* 20% más grande */
+            position: absolute;
+            transition: left 0.1s linear, width 0.2s ease-in-out, height 0.2s ease-in-out; /* Transición para el tamaño */
+            z-index: 10;
+            box-sizing: border-box;
+            background-image: url('https://i.ibb.co/jP49jhv1/player.png'); /* PNG del jugador */
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            bottom: 0px; /* El jugador siempre en la base */
+            /* Ajuste para centrar visualmente si es necesario, aunque background-position: center ayuda */
+            left: calc(var(--player-x, 0) * 40px + (40px - calc(36px * 1.2)) / 2);
+        }
+        /* Estilo para las burgers que caen */
+        .falling-burger {
+            width: calc(36px * 0.8); /* 20% más pequeño */
+            height: calc(36px * 0.8); /* 20% más pequeño */
+            position: absolute;
+            z-index: 5;
+            background-image: url('https://i.ibb.co/bjW4KsPS/hamburger-411275.png'); /* PNG de la burger */
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        /* Estilo para las estrellas que caen */
+        .falling-star {
+            width: calc(36px * 0.8); /* Mismo tamaño que las burgers */
+            height: calc(36px * 0.8); /* Mismo tamaño que las burgers */
+            position: absolute;
+            z-index: 5;
+            background-image: url('https://i.ibb.co/Vhr6CHg/star-1.png'); /* PNG de la estrella */
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        /* Marcador de puntuación y vidas */
+        #score-board {
+            margin-top: 10px;
+            font-size: 24px;
+            color: #000000;
+            font-family: 'VT323', monospace;
+            display: flex;
+            justify-content: space-between; /* Espacio entre los elementos principales */
+            align-items: center;
+            width: 400px;
+            padding: 5px 0;
+        }
+        /* Contenedores individuales para cada sección del marcador */
+        #score-board .score-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0px;
+            /* No flex-grow aquí, para que cada sección tenga su ancho natural */
+        }
+        #score-board .score-text {
+            font-size: 18px;
+            line-height: 1;
+        }
+        #score-board .score-number {
+            font-size: 24px;
+            line-height: 1;
+        }
+        #score-board .burgerboy-logo { /* Clase específica para el logo de Burgerboy */
+            width: auto;
+            height: 50px; /* Altura del logo */
+            margin: 0; /* Eliminar márgenes para un control preciso */
+        }
+        /* Estilo para los iconos de vida */
+        #lives-icons {
+            display: flex;
+            gap: 2px; /* Espacio muy reducido entre los iconos de vida */
+            justify-content: center; /* Centrar los iconos dentro de su contenedor */
+            /* width: 100%; No es necesario si el contenedor tiene ancho natural */
+        }
+        .life-icon {
+            width: 18px; /* Tamaño manual para que sea muy pequeño */
+            height: 18px; /* Tamaño manual para que sea muy pequeño */
+        }
+
+        /* Mensaje de fin de juego */
+        #game-over-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 20px;
+            z-index: 100;
+            display: none;
+            pointer-events: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #game-over-message p {
+            font-size: 32px;
+            margin: 0;
+            text-shadow: 2px 2px #000;
+            line-height: 1.2;
+        }
+        #game-over-message .spacer {
+            height: 1em;
+            width: 100%;
+        }
+        #game-over-message #player-info-name,
+        #game-over-message #player-info-dni {
+            font-size: 32px;
+            margin: 0;
+        }
+        #game-over-message #camera-image {
+            width: 75px;
+            height: auto;
+            margin: 15px auto;
+            display: block;
+        }
+        #game-over-message #win-message-text {
+            font-size: 32px;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        #game-over-message button {
+            padding: 15px 30px;
+            font-size: 24px;
+            margin-top: 0;
+            cursor: pointer;
+            background-color: #ffffff;
+            color: #000000;
+            border: 2px solid #000000;
+            border-radius: 5px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+            font-family: 'VT323', monospace;
+        }
+        #game-over-message button:hover {
+            background-color: #e0e0e0;
+            box-shadow: 0 0 7px rgba(0,0,0,0.4);
+        }
+        /* Pantalla de inicio */
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #000000;
+            z-index: 1000;
+            text-align: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
+        #start-screen-logo-h1 {
+            width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+            display: block;
+        }
+        #start-screen h1 {
+            font-size: 36px;
+            margin-top: 0px;
+            margin-bottom: 10px;
+            font-family: 'VT323', monospace;
+            color: #000000;
+        }
+        /* Nuevo estilo para el título del juego en la pantalla de inicio */
+        #game-title-text {
+            font-size: 48px; /* Tamaño grande */
+            font-weight: bold; /* Negritas */
+            text-transform: uppercase; /* Mayúsculas */
+            margin-top: 10px; /* Espacio debajo del logo */
+            margin-bottom: 20px; /* Espacio antes del párrafo */
+            font-family: 'VT323', monospace;
+            color: #000000;
+            line-height: 1; /* Ajustar altura de línea para compactar */
+        }
+        #start-screen p {
+            font-size: 16px;
+            margin-bottom: 5px;
+            font-family: 'VT323', monospace;
+            color: #000000;
+        }
+        #start-screen #disclaimer-text {
+            font-size: 10px;
+            margin-top: 15px;
+            margin-bottom: 0px;
+            line-height: 1.3;
+            max-width: 300px;
+        }
+        .input-group {
+            margin-top: 15px;
+            margin-bottom: 5px;
+            width: 100%;
+            max-width: 250px;
+            text-align: center;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 20px;
+            font-family: 'VT323', monospace;
+            color: #000000;
+            text-align: center;
+        }
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            font-family: 'VT323', monospace;
+            border: 2px solid #000000;
+            background-color: #ffffff;
+            color: #000000;
+            box-sizing: border-box;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .required-asterisk {
+            color: red;
+            display: none;
+            font-size: 20px;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+        #validation-message {
+            color: red;
+            font-size: 16px;
+            margin-bottom: 10px;
+            font-family: 'VT323', monospace;
+            display: none;
+        }
+        #start-button {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background-color: #000000;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+            font-family: 'VT323', monospace;
+            pointer-events: auto;
+            touch-action: manipulation;
+            margin-top: 20px;
+        }
+        #start-button:hover {
+            background-color: #333333;
+            box-shadow: 3px 3px 7px rgba(0,0,0,0.4);
+        }
+        /* Estilo para el nuevo logo de la pantalla de inicio */
+        #start-screen-logo {
+            width: 150px;
+            height: auto;
+            margin-bottom: 0px;
+        }
+
+        /* Estilos para los controles móviles en pantalla */
+        #mobile-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+            width: 400px;
+            padding: 8px 10px;
+            box-sizing: border-box;
+            z-index: 1;
+            pointer-events: auto;
+            background-color: transparent;
+            display: none;
+        }
+
+        .control-button {
+            background-color: #000000;
+            color: white;
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            padding: 8px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.1s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            flex-grow: 1;
+            max-width: 120px;
+            text-align: center;
+        }
+
+        .control-button:active {
+            background-color: #333333;
+        }
+    </style>
+</head>
+<body>
+    <div id="start-screen">
+        <img id="start-screen-logo" src="https://i.ibb.co/rKdjZkM8/descarga-1.png" alt="Burger Logo">
+        <h1 id="game-title-text">BURGER CATCH</h1>
+        <p>¡Atrapa todas las burgers que caen!</p>
+        <div class="spacer"></div> <p>¡CONSIGUE 150 PUNTOS Y GÁNATE MERCH EXCLUSIVA DE BURGERBOY!</p>
+        
+        <div class="input-group">
+            <label for="playerName">NOMBRE:<span id="nameAsterisk" class="required-asterisk">*</span></label>
+            <input type="text" id="playerName" required>
+        </div>
+        <div class="input-group">
+            <label for="playerDNI">DNI / CE:<span id="dniAsterisk" class="required-asterisk">*</span></label>
+            <input type="text" id="playerDNI" required>
+        </div>
+        <p id="validation-message">Por favor rellena los campos requeridos.</p>
+
+        <button id="start-button">JUGAR</button>
+
+        <p id="disclaimer-text">
+            Promoción válida solo el 31 de mayo de 2025 durante el BURGERFEST. Participa en el juego “BURGER CATCH” escaneando el QR en el stand de Burgerboy. Si alcanzas 150 puntos y presentas tu pantalla de “¡GANASTE!” con nombre y DNI/CE en el stand de Burgerboy, podrás reclamar 1 premio (merch oficial) sujeto a disponibilidad. Máximo 1 premio por persona. Requiere seguir a Burgerboy en todas sus redes.
+        </p>
+    </div>
+
+    <div id="game-over-message">
+        <p id="game-over-text"></p> 
+        <div class="spacer"></div> 
+        <p>Tu puntaje final: <span id="final-score">0</span></p>
+        <div class="spacer"></div> 
+        <p>NOMBRE:</p>
+        <p id="player-info-name"></p> 
+        <p>DNI / CE:</p>
+        <p id="player-info-dni"></p>   
+        <div class="spacer"></div> 
+        <img id="camera-image" src="https://i.ibb.co/Lhkk99D5/camera.png" alt="Camera Icon">
+        <p id="win-message-text"></p> 
+        <button id="restart-button" disabled>Reiniciar</button> </div>
+
+    <div id="game-container">
+        <div id="player"></div>
+    </div>
+
+    <div id="mobile-controls">
+        <button id="left-button" class="control-button">←</button>
+        <button id="right-button" class="control-button">→</button>
+    </div>
+
+    <div id="score-board">
+        <div class="score-section" id="score-burgers">
+            <span class="score-text">Burgers:</span>
+            <span id="score" class="score-number">0</span>
+        </div>
+        <div class="score-section" id="burgerboy-logo-container">
+            <img class="burgerboy-logo" src="https://i.ibb.co/rKdjZkM8/descarga-1.png" alt="Burger Logo Score">
+        </div>
+        <div class="score-section" id="lives-section">
+            <span class="score-text">VIDAS:</span>
+            <div id="lives-icons">
+                <img class="life-icon" src="https://i.ibb.co/bjW4KsPS/hamburger-411275.png" alt="Life">
+                <img class="life-icon" src="https://i.ibb.co/bjW4KsPS/hamburger-411275.png" alt="Life">
+                <img class="life-icon" src="https://i.ibb.co/bjW4KsPS/hamburger-411275.png" alt="Life">
+            </div>
+        </div>
+    </div>
+
+    <audio id="background-music" loop preload="auto">
+        <source src="https://nsanchezbg.github.io/BrandGeeksBB/City%20Echoes.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <audio id="catch-sound" preload="auto">
+        <source src="https://raw.githubusercontent.com/nsanchezBG/BrandGeeksBB/49d138b73040487c61a365eef538acc6f1a6fddf/beep.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="miss-sound" preload="auto">
+        <source src="https://raw.githubusercontent.com/nsanchezBG/BrandGeeksBB/49d138b73040487c61a365eef538acc6f1a6fddf/lose.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="star-sound" preload="auto">
+        <source src="https://raw.githubusercontent.com/nsanchezBG/BrandGeeksBBCatch/e0a4b9d0ad78273cd4bca7a1d14ca8c8e349c8be/powerUp.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="spawn-sound" preload="auto">
+        <source src="https://raw.githubusercontent.com/nsanchezBG/BrandGeeksBB/49d138b73040487c61a365eef538acc6f1a6fddf/spawn.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // Obtener referencias a los elementos del DOM
+        const gameContainer = document.getElementById('game-container');
+        const player = document.getElementById('player');
+        const scoreDisplay = document.getElementById('score');
+        const gameOverMessage = document.getElementById('game-over-message');
+        const finalScoreDisplay = document.getElementById('final-score'); // Corrected typo here
+        const restartButton = document.getElementById('restart-button');
+        const startScreen = document.getElementById('start-screen');
+        const startButton = document.getElementById('start-button');
+        const gameOverText = document.getElementById('game-over-text');
+        const playerNameInput = document.getElementById('playerName');
+        const playerDNIInput = document.getElementById('playerDNI');
+        const playerInfoNameDisplay = document.getElementById('player-info-name');
+        const playerInfoDNIDisplay = document.getElementById('player-info-dni');
+        const validationMessage = document.getElementById('validation-message');
+        const nameAsterisk = document.getElementById('nameAsterisk');
+        const dniAsterisk = document.getElementById('dniAsterisk');
+        const cameraImage = document.getElementById('camera-image');
+        const winMessageText = document.getElementById('win-message-text');
+        const backgroundMusic = document.getElementById('background-music');
+        const catchSound = document.getElementById('catch-sound'); // Sonido al atrapar una burger
+        const missSound = document.getElementById('miss-sound');   // Sonido al perder una burger
+        const starSound = document.getElementById('star-sound'); // Sonido al atrapar una estrella
+        const spawnSound = document.getElementById('spawn-sound'); // Sonido de spawn
+
+        // Controles móviles
+        const leftButton = document.getElementById('left-button');
+        const rightButton = document.getElementById('right-button');
+        const mobileControls = document.getElementById('mobile-controls');
+
+        // Vidas
+        const livesIconsContainer = document.getElementById('lives-icons');
+
+
+        // Constantes del juego
+        const TILE_SIZE = 40; // Tamaño de cada "baldosa" o celda
+        const GAME_WIDTH_TILES = 10; // Ancho del juego en número de baldosas
+        const GAME_HEIGHT_TILES = 15; // Alto del juego en número de baldosas (área visible)
+
+        // Variables de estado del juego
+        let playerPos = { x: 0, y: 0 }; // Posición del jugador (y=0 es la fila más baja)
+        let score = 0; // Burgers recolectadas
+        let lives = 3; // Vidas iniciales
+        let gameOver = false; // Indica si el juego ha terminado
+        let gameLoopId; // ID del frame de animación
+        let gameStarted = false; // Indica si el juego ha comenzado
+        let fallingItems = []; // Array que almacena los objetos de burgers/estrellas cayendo
+
+        // Información del jugador
+        let currentPlayerName = '';
+        let currentPlayerDNI = '';
+
+        // Parámetros de dificultad
+        const BASE_BURGER_SPAWN_INTERVAL_MS = 1500; // Intervalo base de aparición (más lento)
+        const MIN_BURGER_SPAWN_INTERVAL_MS = 300; // Intervalo mínimo de aparición
+        const SPAWN_DECREMENT_PER_DIFFICULTY = 30; // Cuánto disminuye el intervalo por nivel de dificultad (más suave)
+
+        const INITIAL_BURGER_SPEED_MIN = 0.8; // Velocidad mínima de caída inicial (pixels por frame, más lenta)
+        const INITIAL_BURGER_SPEED_MAX = 2; // Velocidad máxima de caída inicial (pixels por frame, más lenta)
+        const SPEED_INCREMENT_PER_DIFFICULTY = 0.1; // Cuánto aumenta la velocidad por nivel de dificultad (más suave)
+        const MAX_BURGER_SPEED = 6; // Velocidad máxima de caída (reducida)
+
+        const DIFFICULTY_INCREASE_SCORE_INTERVAL = 15; // Cada cuántos puntos aumenta la dificultad (más puntos para aumentar)
+
+        let lastItemSpawnTime = 0;
+        let currentItemSpeedMin = INITIAL_BURGER_SPEED_MIN;
+        let currentItemSpeedMax = INITIAL_BURGER_SPEED_MAX; 
+        let currentItemSpawnInterval = BASE_BURGER_SPAWN_INTERVAL_MS;
+
+        // Variables para la mecánica de la estrella
+        const STAR_SPAWN_CHANCE = 0.033; // Aumentado a ~1/30 de probabilidad de que aparezca una estrella
+        const STAR_POWER_DURATION_MS = 10000; // Duración del efecto de la estrella (10 segundos)
+        let isStarPowerActive = false;
+        let starPowerTimeoutId;
+
+        /**
+         * Crea un elemento de ítem (burger o estrella) que cae y lo añade al contenedor del juego.
+         * @param {number} xPosTile - Posición X del ítem en unidades de baldosa.
+         * @param {string} type - Tipo de ítem ('burger' o 'star').
+         * @returns {HTMLElement} El elemento div del ítem creado.
+         */
+        function createFallingItemElement(xPosTile, type) {
+            const itemDiv = document.createElement('div');
+            itemDiv.classList.add(type === 'star' ? 'falling-star' : 'falling-burger');
+            gameContainer.appendChild(itemDiv); 
+            // Obtener el tamaño real después de añadirlo al DOM para CSS
+            const itemSize = parseFloat(getComputedStyle(itemDiv).width); 
+            itemDiv.style.left = (xPosTile * TILE_SIZE + (TILE_SIZE - itemSize) / 2) + 'px';
+            itemDiv.style.top = -itemSize + 'px'; // Empezar por encima del área visible
+            return itemDiv;
+        }
+
+        /**
+         * Genera un nuevo ítem (burger o estrella) que cae en una columna aleatoria.
+         */
+        function spawnItem() {
+            const randomX = Math.floor(Math.random() * GAME_WIDTH_TILES);
+            let itemElement;
+            let itemType;
+
+            if (Math.random() < STAR_SPAWN_CHANCE && !isStarPowerActive) { // No spawnea estrella si ya hay una activa
+                itemType = 'star';
+                itemElement = createFallingItemElement(randomX, itemType);
+            } else {
+                itemType = 'burger';
+                itemElement = createFallingItemElement(randomX, itemType);
+            }
+            
+            const speed = currentItemSpeedMin + Math.random() * (currentItemSpeedMax - currentItemSpeedMin);
+            
+            fallingItems.push({
+                element: itemElement,
+                x: randomX * TILE_SIZE, // Posición X en píxeles (se usa para el cálculo de colisión)
+                y: -parseFloat(getComputedStyle(itemElement).height), // Posición Y en píxeles (empieza arriba, usando su altura real)
+                speed: speed, // Velocidad de caída
+                caught: false, // Bandera para verificar si fue atrapada
+                type: itemType // Tipo de ítem
+            });
+        }
+
+        /**
+         * Actualiza la posición visual del jugador en la pantalla.
+         */
+        function updatePlayerPosition() {
+            // El jugador siempre estará en la fila más baja (bottom: 0px)
+            // Ajustar el left para centrar el jugador con su nuevo tamaño
+            const playerSize = parseFloat(getComputedStyle(player).width); // Obtener el tamaño real después del CSS
+            player.style.left = (playerPos.x * TILE_SIZE + (TILE_SIZE - playerSize) / 2) + 'px';
+            player.style.bottom = '0px'; 
+        }
+
+        /**
+         * Mueve al jugador horizontalmente.
+         * @param {number} dx - Cambio en la posición X (en unidades de baldosa).
+         */
+        function movePlayer(dx) {
+            if (gameOver) return;
+
+            const newX = playerPos.x + dx;
+
+            // Comprobaciones de límites
+            if (newX < 0 || newX >= GAME_WIDTH_TILES) return;
+
+            playerPos.x = newX;
+            updatePlayerPosition(); // Actualización visual del jugador
+        }
+
+        /**
+         * Activa el poder de la estrella: aumenta el tamaño del jugador.
+         */
+        function activateStarPower() {
+            isStarPowerActive = true;
+            // Aumentar el tamaño del jugador a 2x2 tiles
+            player.style.width = (TILE_SIZE * 2) + 'px';
+            player.style.height = (TILE_SIZE * 2) + 'px';
+            updatePlayerPosition(); // Re-centrar el jugador con el nuevo tamaño
+
+            if (starSound) {
+                starSound.currentTime = 0;
+                starSound.play().catch(error => console.error("Error al reproducir sonido de estrella:", error));
+            }
+
+            // Limpiar cualquier timeout anterior para evitar efectos superpuestos
+            clearTimeout(starPowerTimeoutId);
+            starPowerTimeoutId = setTimeout(deactivateStarPower, STAR_POWER_DURATION_MS);
+        }
+
+        /**
+         * Desactiva el poder de la estrella: devuelve el tamaño del jugador a la normalidad.
+         */
+        function deactivateStarPower() {
+            isStarPowerActive = false;
+            // Devolver el tamaño del jugador al original (1.2 veces el tamaño base)
+            player.style.width = 'calc(36px * 1.2)';
+            player.style.height = 'calc(36px * 1.2)';
+            updatePlayerPosition(); // Re-centrar el jugador con el tamaño original
+        }
+
+        /**
+         * Mueve los ítems que caen hacia abajo y maneja las colisiones.
+         */
+        function moveItems() {
+            // Obtener las dimensiones y posición reales del jugador para una colisión precisa
+            const playerVisualWidth = player.offsetWidth;
+            const playerVisualHeight = player.offsetHeight;
+            // Coordenada Y del borde superior del jugador desde la parte superior del contenedor del juego
+            const playerTopY = gameContainer.offsetHeight - playerVisualHeight; 
+
+            const playerRect = {
+                x: player.offsetLeft, // Usar offsetLeft para la posición X real del jugador
+                y: playerTopY,              // Posición Y del jugador (borde superior)
+                width: playerVisualWidth,
+                height: playerVisualHeight
+            };
+
+            for (let i = fallingItems.length - 1; i >= 0; i--) {
+                const item = fallingItems[i];
+                if (item.caught) continue; // Saltar si ya fue atrapado
+
+                item.y += item.speed; // Mover ítem hacia abajo
+                item.element.style.top = item.y + 'px';
+
+                // Obtener las dimensiones reales del ítem para una colisión precisa
+                const itemVisualWidth = item.element.offsetWidth;
+                const itemVisualHeight = item.element.offsetHeight;
+
+                const itemRect = {
+                    x: item.element.offsetLeft, // Usar offsetLeft para la posición X real del ítem
+                    y: item.element.offsetTop,  // Usar offsetTop para la posición Y real del ítem
+                    width: itemVisualWidth,
+                    height: itemVisualHeight
+                };
+
+                // Detección de colisión AABB (Axis-Aligned Bounding Box)
+                // Comprobar solapamiento horizontal
+                const horizontalOverlap = playerRect.x < itemRect.x + itemRect.width &&
+                                        playerRect.x + playerRect.width > itemRect.x;
+
+                // Comprobar solapamiento vertical
+                const verticalOverlap = playerRect.y < itemRect.y + itemRect.height &&
+                                      playerRect.y + playerRect.height > itemRect.y;
+
+                if (horizontalOverlap && verticalOverlap) {
+                    // ¡Colisión! Ítem atrapado
+                    item.caught = true;
+                    if (item.element.parentNode) item.element.parentNode.removeChild(item.element); // Eliminar visualmente
+
+                    if (item.type === 'burger') {
+                        score++; // Aumentar puntuación en 1 por burger
+                        scoreDisplay.textContent = score;
+                        if (catchSound) {
+                            catchSound.currentTime = 0;
+                            catchSound.play().catch(error => console.error("Error al reproducir sonido de atrapar:", error));
+                        }
+                    } else if (item.type === 'star') {
+                        activateStarPower(); // Activar el poder de la estrella
+                    }
+                }
+
+                // Si el ítem se sale de la pantalla (perdida)
+                // Se considera perdida si la parte inferior del ítem pasa el borde inferior del contenedor del juego.
+                if (item.y + itemRect.height > gameContainer.offsetHeight) {
+                    if (!item.caught) { // Solo si no fue atrapada
+                        if (item.type === 'burger') { // Solo se pierden vidas por burgers
+                            lives--; // Decrementar vida
+                            updateLivesDisplay(); // Actualizar la visualización de vidas
+                            if (missSound) {
+                                missSound.currentTime = 0;
+                                missSound.play().catch(error => console.error("Error al reproducir sonido de perder:", error));
+                            }
+                            if (lives <= 0) { // Comprobar si el juego termina por falta de vidas
+                                setGameOver();
+                            }
+                        }
+                    }
+                    // Eliminar el ítem del DOM y del array una vez que se sale de la pantalla, independientemente de si fue atrapada o perdida.
+                    if (item.element.parentNode) item.element.parentNode.removeChild(item.element);
+                    fallingItems.splice(i, 1); // Eliminar del array
+                }
+            }
+        }
+
+        /**
+         * Actualiza la visualización de los iconos de vida.
+         */
+        function updateLivesDisplay() {
+            const lifeIcons = livesIconsContainer.children;
+            for (let i = 0; i < lifeIcons.length; i++) {
+                if (i < lives) {
+                    lifeIcons[i].style.visibility = 'visible'; // Mostrar icono si hay vida
+                } else {
+                    lifeIcons[i].style.visibility = 'hidden'; // Ocultar icono si no hay vida
+                }
+            }
+        }
+
+        /**
+         * Establece el estado del juego a "terminado" y muestra el mensaje de fin de juego.
+         */
+        function setGameOver() {
+            gameOver = true;
+            gameStarted = false;
+            cancelAnimationFrame(gameLoopId); // Detener el bucle del juego
+            clearTimeout(starPowerTimeoutId); // Asegurarse de limpiar el timeout de la estrella
+
+            // Desactivar el poder de la estrella si estaba activo al terminar el juego
+            if (isStarPowerActive) {
+                deactivateStarPower();
+            }
+            
+            const finalScore = score; // La puntuación final son las burgers atrapadas
+            finalScoreDisplay.textContent = finalScore;
+
+            // Mostrar información del jugador
+            playerInfoNameDisplay.textContent = currentPlayerName;
+            playerInfoDNIDisplay.textContent = currentPlayerDNI;
+
+            // Ocultar controles móviles
+            mobileControls.style.display = 'none';
+            // Deshabilitar interacción con el juego
+            gameContainer.style.pointerEvents = 'none';
+
+            // Comprobar condición de victoria (150 puntos)
+            if (finalScore >= 150) { 
+                gameOverText.textContent = "¡GANASTE!";
+                winMessageText.textContent = "Toma una captura a esta pantalla o déjala abierta y acércate a nuestro stand.";
+                winMessageText.style.display = 'block';
+                cameraImage.style.display = 'block';
+            } else {
+                gameOverText.textContent = "¡Perdiste!";
+                winMessageText.style.display = 'none';
+                cameraImage.style.display = 'none';
+            }
+
+            gameOverMessage.style.display = 'flex';
+            
+            // Habilitar el botón de reiniciar después de un breve retraso
+            restartButton.disabled = true;
+            setTimeout(() => {
+                restartButton.disabled = false;
+            }, 500);
+        }
+
+        /**
+         * El bucle principal del juego, que se ejecuta en cada frame de animación.
+         * @param {DOMHighResTimeStamp} currentTime - El tiempo actual proporcionado por requestAnimationFrame.
+         */
+        function gameLoop(currentTime) {
+            if (gameOver || !gameStarted) return;
+
+            // Generar ítems a intervalos
+            if (currentTime - lastItemSpawnTime > currentItemSpawnInterval) {
+                spawnItem();
+                lastItemSpawnTime = currentTime;
+            }
+
+            moveItems(); // Mover los ítems que caen
+
+            // Aumentar la dificultad según la puntuación
+            const difficultyLevel = Math.floor(score / DIFFICULTY_INCREASE_SCORE_INTERVAL);
+            
+            currentItemSpeedMin = Math.min(INITIAL_BURGER_SPEED_MIN + difficultyLevel * SPEED_INCREMENT_PER_DIFFICULTY, MAX_BURGER_SPEED);
+            currentItemSpeedMax = Math.min(INITIAL_BURGER_SPEED_MAX + difficultyLevel * SPEED_INCREMENT_PER_DIFFICULTY, MAX_BURGER_SPEED);
+            
+            currentItemSpawnInterval = Math.max(MIN_BURGER_SPAWN_INTERVAL_MS, BASE_BURGER_SPAWN_INTERVAL_MS - difficultyLevel * SPAWN_DECREMENT_PER_DIFFICULTY);
+
+            gameLoopId = requestAnimationFrame(gameLoop); // Solicitar el siguiente frame
+        }
+
+        /**
+         * Reinicia el juego a su estado inicial.
+         */
+        function resetGame() {
+            // Validar campos de nombre y DNI solo si se está iniciando desde la pantalla de inicio
+            if (!gameStarted) {
+                let isValid = true;
+                validationMessage.style.display = 'none';
+                nameAsterisk.style.display = 'none';
+                dniAsterisk.style.display = 'none';
+
+                if (!playerNameInput.value.trim()) {
+                    nameAsterisk.style.display = 'inline';
+                    isValid = false;
+                }
+                if (!playerDNIInput.value.trim()) {
+                    dniAsterisk.style.display = 'inline';
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    validationMessage.style.display = 'block';
+                    return; // No iniciar el juego si los campos están vacíos
+                }
+                currentPlayerName = playerNameInput.value.trim();
+                currentPlayerDNI = playerDNIInput.value.trim();
+            }
+
+            // Limpiar los ítems existentes del DOM y del array
+            fallingItems.forEach(item => {
+                if (item.element.parentNode) {
+                    gameContainer.removeChild(item.element);
+                }
+            });
+            fallingItems = [];
+
+            playerPos = { x: Math.floor(GAME_WIDTH_TILES / 2), y: 0 }; // Jugador en el centro inferior
+            score = 0; // Reiniciar puntuación
+            lives = 3; // Reiniciar vidas
+            gameOver = false; // El juego no ha terminado
+            clearTimeout(starPowerTimeoutId); // Limpiar cualquier timeout de estrella pendiente
+            deactivateStarPower(); // Asegurarse de que el jugador vuelva a su tamaño normal
+
+            scoreDisplay.textContent = score; // Actualizar marcador
+            updateLivesDisplay(); // Actualizar visualización de vidas
+            gameOverMessage.style.display = 'none'; // Ocultar mensaje de fin de juego
+            
+            updatePlayerPosition(); // Restablecer la posición visual del jugador
+
+            gameStarted = true; // El juego ha comenzado
+            lastItemSpawnTime = performance.now(); // Reiniciar temporizador de aparición
+            
+            // Restablecer parámetros de dificultad a los valores iniciales
+            currentItemSpeedMin = INITIAL_BURGER_SPEED_MIN;
+            currentItemSpeedMax = INITIAL_BURGER_SPEED_MAX;
+            currentItemSpawnInterval = BASE_BURGER_SPAWN_INTERVAL_MS;
+
+            gameLoop(lastItemSpawnTime); // Iniciar el bucle del juego
+            mobileControls.style.display = 'flex'; // Mostrar controles móviles
+            gameContainer.style.pointerEvents = 'auto'; // Habilitar interacción con el juego
+            startScreen.style.display = 'none'; // Ocultar la pantalla de inicio
+
+            // Reproducir música de fondo
+            if (backgroundMusic) {
+                backgroundMusic.play().catch(error => {
+                    console.error("Error al intentar reproducir la música de fondo:", error);
+                });
+            }
+            // Reproducir sonido de spawn
+            if (spawnSound) {
+                spawnSound.currentTime = 0; // Reiniciar sonido
+                spawnSound.play().catch(error => console.error("Error al reproducir sonido de spawn:", error));
+            }
+        }
+
+        // --- Lógica de Control Táctil ---
+        let touchStartX = 0;
+        const SWIPE_THRESHOLD = 30; // Distancia mínima para considerar un deslizamiento
+
+        gameContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            touchStartX = e.touches[0].clientX;
+        }, { passive: false });
+
+        gameContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault(); 
+        }, { passive: false });
+
+        gameContainer.addEventListener('touchend', (e) => {
+            if (gameOver || !gameStarted) return;
+
+            const touchEndX = e.changedTouches[0].clientX;
+            const dx = touchEndX - touchStartX;
+
+            if (Math.abs(dx) > SWIPE_THRESHOLD) {
+                if (dx > 0) {
+                    movePlayer(1); // Deslizar a la derecha
+                } else {
+                    movePlayer(-1); // Deslizar a la izquierda
+                }
+            }
+        });
+        // --- Fin Lógica de Control Táctil ---
+
+        // Envolver los listeners en DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            restartButton.addEventListener('click', resetGame);
+            startButton.addEventListener('click', resetGame);
+
+            // Listeners de eventos para los botones de control móvil
+            leftButton.addEventListener('click', () => {
+                if (gameStarted && !gameOver) {
+                    movePlayer(-1);
+                }
+            });
+            rightButton.addEventListener('click', () => {
+                if (gameStarted && !gameOver) {
+                    movePlayer(1);
+                }
+            });
+
+            // Control de movimiento del jugador con las teclas de flecha (para PC)
+            document.addEventListener('keydown', (e) => {
+                if (!gameStarted && e.key !== "Escape") return;
+                if (gameOver) return;
+
+                switch (e.key) {
+                    case 'ArrowLeft':
+                        movePlayer(-1);
+                        break;
+                    case 'ArrowRight':
+                        movePlayer(1);
+                        break;
+                }
+            });
+
+            // Configuración inicial al cargar la página
+            updatePlayerPosition(); // Actualizar posición del jugador
+            updateLivesDisplay(); // Mostrar las vidas iniciales
+        });
+    </script>
+</body>
+</html>
